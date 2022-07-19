@@ -58,7 +58,7 @@ impl Database {
     }
 
     pub async fn add_to_queue(&self, entry: StakingQueueEntry) {
-        self.queue.insert_one(entry, None).await.unwrap();
+        self.queue.insert_one(entry, None).ok();
     }
 
     pub async fn transfer_count(&self, account: String) -> i64 {

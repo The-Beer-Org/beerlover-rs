@@ -131,7 +131,7 @@ async fn main() {
 
                             println!("New Queue Entry: {:?}", entry);
 
-                            database.add_to_queue(entry).ok();
+                            database.add_to_queue(entry).await;
                         }
                     }
                 }
