@@ -1,3 +1,5 @@
+#![allow(non_snake_case)]
+#![allow(unused)]
 #[macro_use]
 extern crate serde_json;
 

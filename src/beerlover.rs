@@ -3,9 +3,6 @@ use std::fs;
 use crate::hive;
 use crate::hive::HivePost;
 
-
-
-
 pub struct Beerlover {
     banned_accounts: Vec<String>,
     banned_words: Vec<&'static str>,
@@ -52,7 +49,7 @@ impl Beerlover {
                     valid = false;
                 }
 
-                if (post.author == post.parent_author) {
+                if post.author == post.parent_author || post.parent_permlink == "" || post.parent_author == "" {
                     valid = false;
                 }
 
