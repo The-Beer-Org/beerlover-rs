@@ -116,9 +116,12 @@ async fn main() {
                     let author_beer_balance = hive_engine.stake(post.author.clone(), args.he_token_symbol.clone()).await;
                     let author_max_shares = beerlover.maxium_shares(author_beer_balance.clone());
                     let share_count = database.transfer_count(post.author.clone()).await;
+                    let pending_share_count = database.pending_transfer_count(post.author.clone()).await;
+
+                    let absolute_shares: i64 = share_count + pending_share_count;
 
                     if author_max_shares > 0 {
-                        if share_count < author_max_shares {
+                        if absolute_shares < author_max_shares {
 
                             let entry: StakingQueueEntry = StakingQueueEntry {
                                 from: post.author,

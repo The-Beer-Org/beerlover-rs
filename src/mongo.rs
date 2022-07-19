@@ -61,6 +61,12 @@ impl Database {
         self.queue.insert_one(entry, None).await.ok();
     }
 
+    pub async fn pending_transfer_count(&self, account: String) -> i64 {
+        self.queue.count_documents(doc! {
+            "from": account
+        }, None).await.unwrap_or(0) as i64
+    }
+
     pub async fn transfer_count(&self, account: String) -> i64 {
 
         let yesterday = DateTime::from_millis((chrono::Utc::now().timestamp() - ONE_DAY) * 1000);
