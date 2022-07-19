@@ -89,8 +89,6 @@ async fn main() {
 
     let beerlover: Beerlover = Beerlover::new(banned_accounts, banned_words, args.trigger_word, args.share_ration);
 
-    beerlover.set_start_block(66118370);
-
     let start = beerlover.get_start_block();
     let hive_height = hive.get_head_block().await;
 
@@ -102,7 +100,10 @@ async fn main() {
 
         let trx = match block_data["result"]["transactions"].as_array() {
             Some(trx) => trx.to_owned(),
-            _ => continue
+            _ => {
+                beerlover.set_start_block(cur_block);
+                continue;
+            }
         };
 
         println!("Block {} has {:?} transactions!", cur_block, &trx.len());
@@ -128,12 +129,16 @@ async fn main() {
                                 from_tx: post.tx_id.clone()
                             };
 
-                            database.add_to_queue(entry).await;
+                            println!("New Queue Entry: {:?}", entry);
+
+                            database.add_to_queue(entry).ok();
                         }
                     }
                 }
             }
         }
+
+        beerlover.set_start_block(cur_block);
 
         if cur_block > hive_height {
             println!("Finished importing to headblock!");
