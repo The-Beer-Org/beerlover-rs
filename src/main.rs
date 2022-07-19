@@ -19,7 +19,7 @@ use crate::mongo::Database as BeerDatabase;
 
 /// Beerlover - Reward !BEER comments on the HIVE blockchain
 #[derive(Parser, Debug)]
-#[clap(author = "wehmoen", version, about, long_about = None)]
+#[clap(author = "Developed by: wehmoen", version, about, long_about = None)]
 struct CLIARGS {
     /// MongoDB connection URL
     #[clap(short = 'u', long, value_parser, default_value = "mongodb://127.0.0.1:27017")]
