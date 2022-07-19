@@ -4,6 +4,8 @@ use crate::hive;
 use crate::hive::HivePost;
 
 
+
+
 pub struct Beerlover {
     banned_accounts: Vec<String>,
     banned_words: Vec<&'static str>,
@@ -65,9 +67,14 @@ impl Beerlover {
     }
 
     pub fn get_start_block(&self) -> i64 {
+        let re = regex::Regex::new(r"\r?\n|\r").unwrap();
         if Path::new("./state.dat").exists() {
             match fs::read_to_string("./state.dat") {
-                Ok(v) => v.parse::<i64>().unwrap(),
+                Ok(v) => {
+                    let v = re.replace_all(v.as_str(),"");
+                    println!("{:?}", v);
+                    v.parse::<i64>().unwrap()
+                },
                 Err(_e) => 1
             }
         } else {
