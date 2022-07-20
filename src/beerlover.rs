@@ -66,7 +66,7 @@ impl Beerlover {
         if Path::new("./state.dat").exists() {
             match fs::read_to_string("./state.dat") {
                 Ok(v) => {
-                re.replace_all(v.as_str(), "").parse::<i64>().unwrap()
+                re.replace_all(v.as_str(), "").parse::<i64>().unwrap() + 1
                 }
                 Err(_e) => 1
             }
