@@ -70,8 +70,12 @@ impl Hive {
             .post(&self.rpc_host)
             .header("Content-Type", "application/json")
             .body(reqwest::Body::from(body)).send()
-            .await.unwrap().json::<Value>().await.unwrap();
-        result.to_owned()
+            .await.unwrap().json::<Value>().await;
+
+        match result {
+            Ok(r) => r.to_owned(),
+            Err(e) => panic!("Failed to request Hive RPC!")
+        }
     }
 
     pub fn new(rpc_host: String, http_client: Client, request_id_generator: Counter) -> Hive {
@@ -171,8 +175,12 @@ impl HiveEngine {
             .post(&self.rpc_host)
             .header("Content-Type", "application/json")
             .body(reqwest::Body::from(body)).send()
-            .await.unwrap().json::<Value>().await.unwrap();
-        result.to_owned()
+            .await.unwrap().json::<Value>().await;
+
+        match result {
+            Ok(r) => r.to_owned(),
+            Err(e) => panic!("Failed to request Hive Engine RPC!")
+        }
     }
 
     pub fn new(rpc_host: String, http_client: Client, request_id_generator: Counter) -> HiveEngine {
