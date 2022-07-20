@@ -101,6 +101,11 @@ async fn main() {
     let start = beerlover.get_start_block();
     let hive_height = hive.get_head_block().await;
 
+    if start > hive_height {
+        warn!("Exiting because start > hive_height: {} > {}", start, hive_height);
+        std::process::exit(0)
+    }
+
     let mut block_counter = Counter::new(start);
 
     debug!("Hive Account: \t\t{}", args.hive_account.clone());
@@ -124,6 +129,12 @@ async fn main() {
 
     loop {
         let cur_block = block_counter.next();
+
+        if cur_block > hive_height {
+            info!("Finished importing to headblock!");
+            break;
+        }
+
         let block_data = hive.get_block(cur_block).await;
 
         let trx = match block_data["result"]["transactions"].as_array() {
@@ -169,10 +180,5 @@ async fn main() {
         }
 
         beerlover.set_start_block(cur_block);
-
-        if cur_block > hive_height {
-            info!("Finished importing to headblock!");
-            break;
-        }
     }
 }

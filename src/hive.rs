@@ -40,7 +40,6 @@ impl HivePost {
     }
 }
 
-
 pub struct Counter {
     count: i64,
 }
