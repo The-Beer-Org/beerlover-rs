@@ -58,6 +58,9 @@ struct CLIARGS {
     /// Reward amount. Number of token to be staked to parent author
     #[clap(short = 'm',long, value_parser, default_value = "0.100")]
     reward_amount: String,
+    /// Print debug info
+    #[clap(short = 'n',long, value_parser, default_value_t = false)]
+    debug_info: bool,
 }
 
 
@@ -108,22 +111,27 @@ async fn main() {
 
     let mut block_counter = Counter::new(start);
 
-    debug!("Hive Account: \t\t{}", args.hive_account.clone());
-    debug!("Hive RPC Host: \t\t{}", args.rpc_host.clone());
-    debug!("Hive Engine RPC Host: \t{}", args.he_rpc_host.clone());
-    debug!("Hive Engine Token Symbol: \t{}", args.he_token_symbol.clone());
-    debug!("Hive Banned Accounts: \t{}", banned_account_names.clone().join(",").to_string());
+    if args.debug_info {
 
-    debug!("MongoDB URI: \t\t{}", &args.mongodb_uri);
-    debug!("MongoDB Database: \t\t{}", &args.mongodb_name);
-    debug!("MongoDB Collection: \t\t{}", &args.mongodb_collection);
+        debug!("=============== BEERLOVER CONFIG ===============\n");
 
-    debug!("Beerlover Reward Amount: \t{} {}", &args.reward_amount, &args.he_token_symbol);
-    debug!("Beerlover Share Ratio: \t{}", &args.share_ration);
-    debug!("Beerlover Trigger Word: \t{}", &args.trigger_word);
+        debug!("Hive Account: \t\t{}", args.hive_account.clone());
+        debug!("Hive RPC Host: \t\t{}", args.rpc_host.clone());
+        debug!("Hive Engine RPC Host: \t{}", args.he_rpc_host.clone());
+        debug!("Hive Engine Token Symbol: \t{}", args.he_token_symbol.clone());
+        debug!("Hive Banned Accounts: \t{}", banned_account_names.clone().join(",").to_string());
 
-    debug!("Beerlover Start Block: \t{}", &start);
-    debug!("Beerlover Hive Head Block: \t{}", &hive_height);
+        debug!("MongoDB URI: \t\t{}", &args.mongodb_uri);
+        debug!("MongoDB Database: \t\t{}", &args.mongodb_name);
+        debug!("MongoDB Collection: \t\t{}", &args.mongodb_collection);
+
+        debug!("Beerlover Reward Amount: \t{} {}", &args.reward_amount, &args.he_token_symbol);
+        debug!("Beerlover Share Ratio: \t{}", &args.share_ration);
+        debug!("Beerlover Trigger Word: \t{}", &args.trigger_word);
+
+        debug!("Beerlover Start Block: \t{}", &start);
+        debug!("Beerlover Hive Head Block: \t{}\n", &hive_height);
+    }
 
     debug!("=============== BEERLOVER BEGIN ===============");
 
