@@ -1,3 +1,5 @@
+use std::fmt;
+use std::fmt::{Display, Formatter};
 use chrono::NaiveDateTime;
 use mongodb::{bson::doc, bson::DateTime, Collection, Client, options::FindOneOptions, IndexModel};
 use mongodb::options::{IndexOptions, InsertManyOptions};
@@ -23,6 +25,12 @@ pub struct StakingQueueEntry {
     pub from: String,
     pub permlink: String,
     pub from_tx: String
+}
+
+impl fmt::Display for StakingQueueEntry {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "Stake {} {}\tFrom: {}\tTo: {}\tPermlink: {}\tFrom TX: {}", self.amount, self.symbol, self.from, self.to, self.permlink, self.from_tx)
+    }
 }
 
 pub struct DatabaseOptions {

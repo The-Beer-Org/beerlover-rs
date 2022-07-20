@@ -82,6 +82,39 @@ impl Hive {
         }
     }
 
+    pub async fn get_ignore_list(&mut self, account: String) -> Vec<String> {
+        let request_id = self.request_id_generator.next();
+
+        let body = json!({
+            "id": request_id,
+            "jsonrpc":"2.0",
+            "method":"condenser_api.get_following",
+            "params":[
+                account,
+                "",
+                "ignore",
+                250
+            ]
+        });
+
+        let request_body = serde_json::to_string(&body).unwrap().as_bytes().to_vec();
+
+        let result = self.request(request_body).await;
+
+        if result["id"] != request_id {
+            panic!("Request ID does not match! Expected {} got {}", request_id, result["id"]);
+        }
+
+        let mut ignore_list: Vec<String> = vec![];
+        let result = result["result"].as_array().unwrap().iter();
+
+        for account in result {
+            ignore_list.push(account["following"].as_str().unwrap().to_string());
+        }
+
+        ignore_list
+    }
+
     pub async fn get_head_block(&mut self) -> i64 {
         let request_id = self.request_id_generator.next();
 

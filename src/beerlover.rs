@@ -7,7 +7,7 @@ pub struct Beerlover {
     banned_accounts: Vec<String>,
     banned_words: Vec<&'static str>,
     command: String,
-    share_ratio: f64
+    share_ratio: f64,
 }
 
 impl Beerlover {
@@ -16,7 +16,7 @@ impl Beerlover {
             banned_accounts,
             banned_words,
             command,
-            share_ratio
+            share_ratio,
         }
     }
 
@@ -39,7 +39,6 @@ impl Beerlover {
                 let mut valid = true;
 
                 if self.banned_accounts.contains(&post.author) == false && self.banned_accounts.contains(&post.parent_author) == false {
-
                     for word in self.banned_words.to_owned() {
                         if post.body.contains(word) {
                             valid = false;
@@ -53,10 +52,9 @@ impl Beerlover {
                     valid = false;
                 }
 
-                if valid &&  post.body.contains(self.command.clone().as_str()) {
+                if valid && post.body.contains(self.command.clone().as_str()) {
                     valid_posts.push(post);
                 }
-
             }
         }
 
@@ -68,10 +66,8 @@ impl Beerlover {
         if Path::new("./state.dat").exists() {
             match fs::read_to_string("./state.dat") {
                 Ok(v) => {
-                    let v = re.replace_all(v.as_str(),"");
-                    println!("{:?}", v);
-                    v.parse::<i64>().unwrap()
-                },
+                re.replace_all(v.as_str(), "").parse::<i64>().unwrap()
+                }
                 Err(_e) => 1
             }
         } else {
