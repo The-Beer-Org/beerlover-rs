@@ -1,13 +1,12 @@
 use std::fmt;
-use std::fmt::{Display, Formatter};
-use chrono::NaiveDateTime;
-use mongodb::{bson::doc, bson::DateTime, Collection, Client, options::FindOneOptions, IndexModel};
-use mongodb::options::{IndexOptions, InsertManyOptions};
+use std::fmt::{Formatter};
+use mongodb::{bson::doc, bson::DateTime, Collection, Client};
 use serde::{Deserialize, Serialize};
+use crate::{CLIARGS, HivePost};
 
 const ONE_DAY: i64 = 60 * 60 * 24;
 
-#[derive(Debug, Clone)]
+#[allow(dead_code)]
 struct BeerTransfer {
     from: String,
     to: String,
@@ -17,6 +16,19 @@ struct BeerTransfer {
     createdAt: DateTime
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all="lowercase")]
+pub enum StakingQueueAction {
+    StakeAndComment, //Everything okay. stake token and make comment
+    NotEnoughTokenInAccount, // The main accounts does not have enougth token and needs a refill
+    NotEnoughStake, // The user has not enough token staked
+    SharesExceeded, // The user exceeded their 24 hour limit
+    Blocked, // The user is blocked from using the service
+    BlockedWord, // Post contains blacklisted word
+    SelfReward, // User tries to give Beer to themselves
+    Invalid // Used when the trigger word wasn't found. Not stored to db.
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StakingQueueEntry {
     pub to: String,
@@ -24,7 +36,9 @@ pub struct StakingQueueEntry {
     pub symbol: String,
     pub from: String,
     pub permlink: String,
-    pub from_tx: String
+    pub from_permlink: String,
+    pub from_tx: String,
+    pub action: StakingQueueAction
 }
 
 impl fmt::Display for StakingQueueEntry {
@@ -33,10 +47,26 @@ impl fmt::Display for StakingQueueEntry {
     }
 }
 
+impl StakingQueueEntry {
+    pub fn from(post: HivePost, args: &CLIARGS, action: StakingQueueAction) -> StakingQueueEntry {
+        StakingQueueEntry {
+            from: post.author,
+            to: post.parent_author,
+            amount: args.reward_amount.clone(),
+            symbol: args.he_token_symbol.clone(),
+            permlink: post.parent_permlink,
+            from_permlink: post.permlink,
+            from_tx: post.tx_id,
+            action
+        }
+    }
+}
+
 pub struct DatabaseOptions {
     pub uri: String,
     pub db_name: String,
-    pub collection_name: String
+    pub collection_name: String,
+    pub queue_collection_name: String
 }
 
 pub struct Database {
@@ -50,7 +80,7 @@ impl Database {
         let client = Client::with_uri_str(&options.uri).await.unwrap();
         let database = client.database(&options.db_name);
         let collection = database.collection::<BeerTransfer>(&options.collection_name);
-        let queue = database.collection::<StakingQueueEntry>("queue");
+        let queue = database.collection::<StakingQueueEntry>(&options.queue_collection_name);
 
         Database {
             client,

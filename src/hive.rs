@@ -1,41 +1,33 @@
-use std::collections::HashMap;
-use std::iter::Filter;
 use std::iter::Iterator;
-use serde_json::{json, Result, Value};
+use serde_json::{json, Value};
 use reqwest::{Client};
+use crate::StakingQueueAction;
 
 pub mod hive_ops;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct HivePost {
     pub author: String,
     pub permlink: String,
     pub parent_author: String,
     pub parent_permlink: String,
     pub body: String,
-    pub tx_id: String
+    pub tx_id: String,
+    pub action: StakingQueueAction
 }
 
-impl HivePost {
-    pub fn new(author: String, permlink: String, parent_author: String, parent_permlink: String, body: String, tx_id: String) -> HivePost {
-        HivePost {
-            author,
-            permlink,
-            parent_author,
-            parent_permlink,
-            body,
-            tx_id
-        }
-    }
+pub type HivePostList = Vec<HivePost>;
 
-    pub fn from_value(op: Value, tx_id: String) -> Self {
+impl HivePost {
+    pub fn from(op: Value, tx_id: String, action: StakingQueueAction) -> Self {
         HivePost {
             author: op[1]["author"].as_str().unwrap().to_string(),
             permlink: op[1]["permlink"].as_str().unwrap().to_string(),
             parent_author: op[1]["parent_author"].as_str().unwrap().to_string(),
             parent_permlink: op[1]["parent_permlink"].as_str().unwrap().to_string(),
             body: op[1]["body"].as_str().unwrap().to_string(),
-            tx_id
+            tx_id,
+            action
         }
     }
 }
@@ -73,7 +65,7 @@ impl Hive {
 
         match result {
             Ok(r) => r.to_owned(),
-            Err(e) => panic!("Failed to request Hive RPC!")
+            Err(_) => panic!("Failed to request Hive RPC!")
         }
     }
 
@@ -178,7 +170,7 @@ impl HiveEngine {
 
         match result {
             Ok(r) => r.to_owned(),
-            Err(e) => panic!("Failed to request Hive Engine RPC!")
+            Err(_) => panic!("Failed to request Hive Engine RPC!")
         }
     }
 

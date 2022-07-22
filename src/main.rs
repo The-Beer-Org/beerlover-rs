@@ -1,27 +1,26 @@
+// #![allow(non_snake_case)]
+// #![allow(unused)]
 #![allow(non_snake_case)]
-#![allow(unused)]
-#[macro_use]
-extern crate serde_json;
-extern crate pretty_env_logger;
 #[macro_use]
 extern crate log;
+extern crate pretty_env_logger;
+#[macro_use]
+extern crate serde_json;
+
+use std::fmt::Debug;
+use clap::Parser;
+use crate::beerlover::Beerlover;
+use crate::hive::{Counter, Hive, HiveEngine, HivePost, HivePostList};
+use crate::mongo::{Database as BeerDatabase, DatabaseOptions, StakingQueueAction, StakingQueueEntry};
 
 mod hive;
 mod beerlover;
 mod mongo;
 
-use std::collections::HashSet;
-use std::fmt::Debug;
-use clap::Parser;
-
-use crate::beerlover::Beerlover;
-use crate::hive::{Counter, Hive, HiveEngine, HivePost};
-use crate::mongo::{DatabaseOptions, StakingQueueEntry, Database as BeerDatabase};
-
 /// Beerlover - Reward !BEER comments on the HIVE blockchain
 #[derive(Parser, Debug)]
 #[clap(author = "Developed by: wehmoen", version, about, long_about = None)]
-struct CLIARGS {
+pub struct CLIARGS {
     /// MongoDB connection URL
     #[clap(short = 'a', long, value_parser, default_value = "mongodb://127.0.0.1:27017")]
     mongodb_uri: String,
@@ -31,36 +30,43 @@ struct CLIARGS {
     /// MongoDB collection name
     #[clap(short = 'c', long, value_parser, default_value = "beertransfers")]
     mongodb_collection: String,
+    /// MongoDB queue collection name
+    #[clap(short = 'd', long, value_parser, default_value = "queue")]
+    mongodb_queue_collection: String,
     /// Broadcast API Host
-    #[clap(short = 'd', long, value_parser, default_value = "http://127.0.0.1:6666/broacast")]
+    #[clap(short = 'e', long, value_parser, default_value = "http://127.0.0.1:6666/broacast")]
     broadcast_api_host: String,
     /// Hive RPC API Host
-    #[clap(short = 'e', long, value_parser, default_value = "https://api.deathwing.me")]
+    #[clap(short = 'f', long, value_parser, default_value = "https://api.deathwing.me")]
     rpc_host: String,
     /// Hive Engine RPC API Host
-    #[clap(short = 'f', long, value_parser, default_value = "https://ha.herpc.dtools.dev/contracts")]
+    #[clap(short = 'g', long, value_parser, default_value = "https://ha.herpc.dtools.dev/contracts")]
     he_rpc_host: String,
     /// Hive Engine Token Symbol
-    #[clap(short = 'g', long, value_parser, default_value = "BEER")]
+    #[clap(short = 'i', long, value_parser, default_value = "BEER")]
     he_token_symbol: String,
     /// Hive Account
-    #[clap(short = 'i', long, value_parser, default_value = "beerlover")]
+    #[clap(short = 'j', long, value_parser, default_value = "beerlover")]
     hive_account: String,
     /// Trigger word - Use this in a HIVE comment to share token
-    #[clap(short = 'j', long, value_parser, default_value = "!BEER")]
+    #[clap(short = 'k', long, value_parser, default_value = "!BEER")]
     trigger_word: String,
     /// List of accounts to load the ignored user from and use them as blacklist. Comma seperated
-    #[clap(short = 'k', long, value_parser, default_value = "beerlover,detlev,louis88,wehmoen")]
+    #[clap(short = 'l', long, value_parser, default_value = "beerlover,detlev,louis88,wehmoen")]
     banned_accounts: String,
     /// Share Ratio. Allow 1 Share per n token in wallet
-    #[clap(short = 'l', long, value_parser, default_value_t = 24.0)]
+    #[clap(short = 'm', long, value_parser, default_value_t = 24.0)]
     share_ration: f64,
     /// Reward amount. Number of token to be staked to parent author
-    #[clap(short = 'm',long, value_parser, default_value = "0.100")]
+    #[clap(short = 'n', long, value_parser, default_value = "0.100")]
     reward_amount: String,
     /// Print debug info
-    #[clap(short = 'n',long, value_parser, default_value_t = false)]
+    #[clap(short = 'o', long, value_parser, default_value_t = false)]
     debug_info: bool,
+    /// Set Block State - use with caution
+    #[clap(short = 'p', long, value_parser, default_value_t = 0)]
+    set_block_state: i64,
+
 }
 
 
@@ -70,8 +76,8 @@ async fn main() {
 
     let args: CLIARGS = CLIARGS::parse();
 
-    let mut counter = Counter::new(0);
-    let mut he_counter = Counter::new(0);
+    let counter = Counter::new(0);
+    let he_counter = Counter::new(0);
     let client = reqwest::Client::new();
 
     let mut hive: Hive = Hive::new(args.rpc_host.clone(), client.clone(), counter);
@@ -81,6 +87,7 @@ async fn main() {
         uri: args.mongodb_uri.clone(),
         db_name: args.mongodb_name.clone(),
         collection_name: args.mongodb_collection.clone(),
+        queue_collection_name: args.mongodb_queue_collection.clone(),
     };
 
     let database: BeerDatabase = BeerDatabase::new(db_options).await;
@@ -94,12 +101,18 @@ async fn main() {
     }
 
     let banned_words: Vec<&str> = vec![ //TODO: make configurable through cli arg like banned accounts
-        "!PIZZA",
-        "!LUV",
-        "!ENGAGE",
+                                        "!PIZZA",
+                                        "!LUV",
+                                        "!ENGAGE",
     ];
 
     let beerlover: Beerlover = Beerlover::new(banned_account_names.clone(), banned_words.clone(), args.trigger_word.clone(), args.share_ration.clone());
+
+    if args.set_block_state > 0 {
+        info!("Setting block state to: {}", &args.set_block_state);
+        beerlover.set_start_block(args.set_block_state);
+        std::process::exit(0);
+    }
 
     let start = beerlover.get_start_block();
     let hive_height = hive.get_head_block().await;
@@ -112,7 +125,6 @@ async fn main() {
     let mut block_counter = Counter::new(start);
 
     if args.debug_info {
-
         debug!("=============== BEERLOVER CONFIG ===============\n");
 
         debug!("Hive Account: \t\t{}", args.hive_account.clone());
@@ -156,32 +168,49 @@ async fn main() {
         info!("Block {} has {:?} transactions!", cur_block, &trx.len());
 
         for tx in trx {
-            let posts: Vec<HivePost> = beerlover.filter_operations(tx["operations"].to_owned(), tx["transaction_id"].as_str().unwrap().to_string().to_owned());
+            let posts: HivePostList = beerlover.filter_operations(tx["operations"].to_owned(), tx["transaction_id"].as_str().unwrap().to_string().to_owned());
 
             for post in posts {
                 if database.already_processed(post.tx_id.clone()).await == false {
-                    let author_beer_balance = hive_engine.stake(post.author.clone(), args.he_token_symbol.clone()).await;
-                    let author_max_shares = beerlover.maxium_shares(author_beer_balance.clone());
-                    let share_count = database.transfer_count(post.author.clone()).await;
-                    let pending_share_count = database.pending_transfer_count(post.author.clone()).await;
+                    if post.action == StakingQueueAction::StakeAndComment {
+                        let author_beer_balance = hive_engine.stake(post.author.clone(), args.he_token_symbol.clone()).await;
+                        let author_max_shares = beerlover.maxium_shares(author_beer_balance.clone());
+                        let share_count = database.transfer_count(post.author.clone()).await;
+                        let pending_share_count = database.pending_transfer_count(post.author.clone()).await;
 
-                    let absolute_shares: i64 = share_count + pending_share_count;
+                        let absolute_shares: i64 = share_count + pending_share_count;
 
-                    if author_max_shares > 0 {
-                        if absolute_shares < author_max_shares {
-                            let entry: StakingQueueEntry = StakingQueueEntry {
-                                from: post.author,
-                                to: post.parent_author,
-                                amount: args.reward_amount.clone(),
-                                symbol: args.he_token_symbol.clone(),
-                                permlink: post.parent_permlink.clone(),
-                                from_tx: post.tx_id.clone(),
-                            };
+                        if author_max_shares > 0 {
+                            if absolute_shares < author_max_shares {
+                                let entry: StakingQueueEntry = StakingQueueEntry {
+                                    from: post.author,
+                                    to: post.parent_author,
+                                    amount: args.reward_amount.clone(),
+                                    symbol: args.he_token_symbol.clone(),
+                                    permlink: post.parent_permlink.clone(),
+                                    from_permlink: post.permlink.clone(),
+                                    from_tx: post.tx_id.clone(),
+                                    action: StakingQueueAction::StakeAndComment,
+                                };
 
-                            info!("New Queue Entry: {}", entry);
+                                info!("New Queue Entry: [{:?}] {}",StakingQueueAction::StakeAndComment, entry);
 
+                                database.add_to_queue(entry).await;
+                            } else {
+                                let entry = StakingQueueEntry::from(post, &args, StakingQueueAction::SharesExceeded);
+                                info!("New Queue Entry: [{:?}] {}",StakingQueueAction::SharesExceeded, entry);
+                                database.add_to_queue(entry).await;
+                            }
+                        } else {
+                            let entry = StakingQueueEntry::from(post, &args, StakingQueueAction::NotEnoughStake);
+                            info!("New Queue Entry: [{:?}] {}",StakingQueueAction::NotEnoughStake, entry);
                             database.add_to_queue(entry).await;
                         }
+                    } else {
+                        let action = post.action.clone();
+                        let entry = StakingQueueEntry::from(post, &args, action.clone());
+                        info!("New Queue Entry: [{:?}] {}", &action, entry);
+                        database.add_to_queue(entry).await;
                     }
                 }
             }

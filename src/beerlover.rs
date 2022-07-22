@@ -1,8 +1,8 @@
 use std::path::Path;
 use std::fs;
-use crate::hive;
-use crate::hive::HivePost;
-
+use serde_json::Value;
+use crate::{hive, StakingQueueAction};
+use crate::hive::{HivePost, HivePostList};
 pub struct Beerlover {
     banned_accounts: Vec<String>,
     banned_words: Vec<&'static str>,
@@ -24,36 +24,45 @@ impl Beerlover {
         (balance / self.share_ratio) as i64
     }
 
-    pub fn filter_operations(&self, mut operations: serde_json::Value, tx_id: String) -> Vec<HivePost> {
-        let op_array = operations.as_array().to_owned();
+    pub fn filter_operations(&self, operations: serde_json::Value, tx_id: String) -> HivePostList {
+        let op_array: Option<&Vec<Value>> = operations.as_array().to_owned();
 
-        let mut valid_posts: Vec<HivePost> = vec![];
+        let mut valid_posts: HivePostList = vec![];
 
         for op in op_array.iter() {
-            let op_self = op.to_owned().to_owned();
-            let op_name = op_self[0][0].as_str().unwrap(); // Possibly do one more iteration for tx with more than one op tuple
+            let op_self: Vec<Value> = op.to_owned().to_owned();
+            let op_name: &str = op_self[0][0].as_str().unwrap(); // Possibly do one more iteration for tx with more than one op tuple
 
-            if op_name == hive::hive_ops::COMMENT {
-                let post: HivePost = HivePost::from_value(op_self[0].to_owned(), tx_id.to_owned());
+            if op_name == hive::hive_ops::COMMENT  {
+                let mut post: HivePost = HivePost::from(op_self[0].to_owned(), tx_id.to_owned(), StakingQueueAction::Invalid);
 
-                let mut valid = true;
+                if post.body.contains(self.command.clone().as_str()) {
+                    let mut valid = true;
 
-                if self.banned_accounts.contains(&post.author) == false && self.banned_accounts.contains(&post.parent_author) == false {
-                    for word in self.banned_words.to_owned() {
-                        if post.body.contains(word) {
-                            valid = false;
+                    if self.banned_accounts.contains(&post.author) == false && self.banned_accounts.contains(&post.parent_author) == false {
+                        for word in self.banned_words.to_owned() {
+                            if post.body.contains(word) {
+                                post.action = StakingQueueAction::BlockedWord;
+                                valid_posts.push(post.clone());
+                                valid = false;
+                            }
                         }
+                    } else {
+                        post.action = StakingQueueAction::Blocked;
+                        valid_posts.push(post.clone());
+                        valid = false;
                     }
-                } else {
-                    valid = false;
-                }
 
-                if post.author == post.parent_author || post.parent_permlink == "" || post.parent_author == "" {
-                    valid = false;
-                }
+                    if post.author == post.parent_author || post.parent_permlink == "" || post.parent_author == "" {
+                        post.action = StakingQueueAction::SelfReward;
+                        valid_posts.push(post.clone());
+                        valid = false;
+                    }
 
-                if valid && post.body.contains(self.command.clone().as_str()) {
-                    valid_posts.push(post);
+                    if valid  {
+                        post.action = StakingQueueAction::StakeAndComment;
+                        valid_posts.push(post.clone());
+                    }
                 }
             }
         }
@@ -66,9 +75,9 @@ impl Beerlover {
         if Path::new("./state.dat").exists() {
             match fs::read_to_string("./state.dat") {
                 Ok(v) => {
-                re.replace_all(v.as_str(), "").parse::<i64>().unwrap() + 1
+                    re.replace_all(v.as_str(), "").parse::<i64>().unwrap() + 1
                 }
-                Err(_e) => 1
+                Err(_) => 1
             }
         } else {
             1
@@ -76,7 +85,7 @@ impl Beerlover {
     }
     pub fn set_start_block(&self, block: i64) -> bool {
         match fs::write("./state.dat", block.to_string()) {
-            Ok(v) => true,
+            Ok(_) => true,
             _ => false
         }
     }
