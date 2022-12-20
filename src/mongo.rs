@@ -102,6 +102,7 @@ impl Database {
     pub async fn pending_transfer_count(&self, account: String) -> i64 {
         self.queue.count_documents(doc! {
             "from": account
+            "action": "stakeandcomment"
         }, None).await.unwrap_or(0) as i64
     }
 
